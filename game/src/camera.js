@@ -30,10 +30,13 @@ export function createFlightCamera(THREE, shipGroup, cockpitGroup) {
       cockpitGroup.visible = false;
       return chase;
     }
-    // Cockpit: eye at the seat — behind the panel, ahead of the canopy rear
-    // rim, high enough to see over the nose. Never inside the canopy bubble.
-    const eye = tmp.copy(state.position).addScaledVector(fwd, -1.3);
-    eye.y += 1.15;
+    // Cockpit: eye at the seat — forward and high enough to see the raised
+    // panel and over the nose. FIX PASS 1: was fwd -1.3 / +1.15, which put
+    // the eye under the canopy dome with the panel below the hull line in
+    // view. Now fwd -1.6 / +1.32: the eye sits just above the canopy crown
+    // and the panel (y 0.85, tilted up) fills the lower frame.
+    const eye = tmp.copy(state.position).addScaledVector(fwd, -1.6);
+    eye.y += 1.32;
     cockpit.position.copy(eye);
     const look = new THREE.Vector3().copy(state.position).addScaledVector(fwd, 80);
     cockpit.up.set(0, 1, 0);

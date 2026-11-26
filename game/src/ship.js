@@ -13,9 +13,14 @@ export function buildShipModel(THREE) {
   });
   const darkMetal = new THREE.MeshStandardMaterial({ color: 0x2b313c, roughness: 0.5, metalness: 0.3 });
   const tealTrim = new THREE.MeshStandardMaterial({ color: 0x0e7f86, roughness: 0.35, metalness: 0.3, emissive: 0x0a4a4e, emissiveIntensity: 0.5 });
+  // FIX PASS 1: the canopy used to be opaque blue glass, so from the seat
+  // it read as a solid dome filling the frame. Real canopy glass: mostly
+  // transparent from inside (opacity 0.22, no depth write), faint blue
+  // tint kept so it still reads as glass from the chase camera.
   const canopyMat = new THREE.MeshPhysicalMaterial({
     color: 0x0a2038, roughness: 0.08, metalness: 0.2,
-    emissive: 0x2a6ea8, emissiveIntensity: 0.35, clearcoat: 1,
+    emissive: 0x2a6ea8, emissiveIntensity: 0.15, clearcoat: 1,
+    transparent: true, opacity: 0.22, depthWrite: false,
   });
 
   // Lofted hull: lathe profile (pointed nose -> wide mid -> tapered tail),
@@ -107,17 +112,21 @@ export function buildShipModel(THREE) {
   cockpit.name = 'cockpitInterior';
   cockpit.visible = false;
   // Instrument panel: curved box with the backlit gauge texture.
+  // FIX PASS 1: the panel used to sit at y 0.37 — buried inside the hull
+  // (hull top is ~0.73 at this station), so from the seat only clipped
+  // label fragments peeked over the nose. It now sits at y 0.85, tilted up
+  // toward the raised seat eye, clear of the hull line.
   const panel = new THREE.Mesh(
     new THREE.BoxGeometry(2.6, 0.85, 0.22),
     new THREE.MeshStandardMaterial({ map: makePanelTexture(THREE), roughness: 0.5, metalness: 0.2, emissive: 0xffffff, emissiveMap: makePanelTexture(THREE), emissiveIntensity: 0.55 }),
   );
-  panel.position.set(0, 0.37, -2.3);
-  panel.rotation.x = -0.3;
+  panel.position.set(0, 0.85, -2.55);
+  panel.rotation.x = -0.55;
   panel.name = 'instrumentPanel';
   cockpit.add(panel);
   // Glareshield above the panel + side consoles.
-  const shield = new THREE.Mesh(new THREE.BoxGeometry(3.5, 0.18, 0.7), darkMetal);
-  shield.position.set(0, 0.5, -2.2); shield.rotation.x = 0.35; cockpit.add(shield);
+  const shield = new THREE.Mesh(new THREE.BoxGeometry(3.2, 0.12, 0.45), darkMetal);
+  shield.position.set(0, 1.15, -2.45); shield.rotation.x = 0.3; cockpit.add(shield);
   for (const s of [-1, 1]) {
     const console_ = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.3, 2.2), darkMetal);
     console_.position.set(s * 1.55, -0.35, -1.4);
@@ -139,7 +148,7 @@ export function buildShipModel(THREE) {
     cockpit.add(strut2);
   }
   const frameTop = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.14, 0.14), darkMetal);
-  frameTop.position.set(0, 1.28, -2.7);
+  frameTop.position.set(0, 1.45, -2.7);
   cockpit.add(frameTop);
   group.add(cockpit);
 

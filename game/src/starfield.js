@@ -2,7 +2,7 @@
 // of faint clustered stars + the sun glare sprite. No black wallpaper: the
 // stars carry depth, the band carries colour.
 import * as THREE from '../vendor/three.module.min.js';
-import { SUN_DIR } from './config.js';
+import { SUN_GLARE_DIR } from './config.js';
 import { makeGlowTexture } from './textures.js';
 import { range } from './random.js';
 
@@ -68,14 +68,15 @@ export function createStarfield(scene, rng) {
   band.name = 'milkyWayBand';
   group.add(band);
 
-  // Sun glare: bright core + wide halo, placed far along SUN_DIR so the rim
-  // light on ship, planet and asteroids all agree with it.
+  // Sun glare: bright core + wide halo, placed far along SUN_GLARE_DIR so
+  // the glare stays visible ahead-left in the sky. It is a backdrop sprite
+  // only — it lights nothing (see config.js: the key light is SUN_DIR).
   const glowTex = makeGlowTexture(THREE, 'rgba(255,250,230,1)', 'rgba(255,220,150,0.55)');
   const sunSprite = new THREE.Sprite(new THREE.SpriteMaterial({
     map: glowTex, transparent: true, depthWrite: false, fog: false,
     blending: THREE.AdditiveBlending, opacity: 0.95,
   }));
-  sunSprite.position.copy(SUN_DIR).multiplyScalar(4600);
+  sunSprite.position.copy(SUN_GLARE_DIR).multiplyScalar(4600);
   sunSprite.scale.set(1500, 1500, 1);
   sunSprite.name = 'sunGlare';
   group.add(sunSprite);
@@ -83,7 +84,7 @@ export function createStarfield(scene, rng) {
     map: glowTex, transparent: true, depthWrite: false, fog: false,
     blending: THREE.AdditiveBlending, opacity: 1,
   }));
-  sunCore.position.copy(SUN_DIR).multiplyScalar(4600);
+  sunCore.position.copy(SUN_GLARE_DIR).multiplyScalar(4600);
   sunCore.scale.set(420, 420, 1);
   sunCore.name = 'sunCore';
   group.add(sunCore);

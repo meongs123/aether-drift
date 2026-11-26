@@ -4,15 +4,23 @@
 // positions written in place.
 import * as THREE from '../vendor/three.module.min.js';
 import { forwardVector } from './flight.js';
+import { makeGlowTexture } from './textures.js';
 
 export function createThrusterParticles(THREE, scene, count = 240) {
   const geo = new THREE.BufferGeometry();
   const pos = new Float32Array(count * 3);
   const life = new Float32Array(count);
   geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  // FIX PASS 1 (QA F5): particles used to be bare PointsMaterial squares —
+  // hard-edged squares in every live-play frame, one giant square in the
+  // long-fly frame. They now use the round glow sprite map (makeGlowTexture
+  // already existed); size trimmed 1.8 -> 1.4 so a near-camera particle
+  // reads as a soft puff, not a billboard.
   const mat = new THREE.PointsMaterial({
-    color: 0x7fd4ff, size: 1.8, transparent: true, opacity: 0.85,
+    color: 0x7fd4ff, size: 1.4, transparent: true, opacity: 0.85,
     depthWrite: false, blending: THREE.AdditiveBlending, sizeAttenuation: true,
+    map: makeGlowTexture(THREE, 'rgba(127,212,255,1)', 'rgba(127,212,255,0)'),
+    alphaTest: 0.01,
   });
   const points = new THREE.Points(geo, mat);
   points.name = 'thrusterParticles';

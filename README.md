@@ -10,19 +10,24 @@ Fly the **ISV Aetherwing** (AD-AW07) through the Veil Reach — a ringed gas
 giant, an ocean world, a cratered moon, and the station Port Solenne — in a
 fully procedural Three.js space flight game. Five sorties with different
 goals: thread halo gates around Theros, deliver a data core to the station,
-scoop plasma from a comet tail, orbit the derelict SSV Marrow, and dock on
+scoop plasma from a comet tail at 180–260 m/s and drop it slow at the survey
+buoy, orbit the derelict SSV Marrow 245° around its flare, and dock on
 the night side in eclipse. Chase and cockpit cameras, a dense hybrid HUD
 (VEL/ALT/HDG tapes, attitude, gauges, NAV minimap), fuel and hull stakes,
-graded dockings, and scoring 0–100 with GOLD / SILVER / BRONZE medals.
+a low-speed stall regime, per-gate accuracy scoring, graded dockings, and
+scoring 0–100 with GOLD / SILVER / BRONZE medals.
 
 ## How to play
 
-- **W/S** pitch · **A/D** roll · **Q/E** yaw · **Shift/Ctrl** throttle
+- **W/S** pitch (W = nose up) · **A/D** roll (D = bank right) · **Q/E** yaw · **Shift/Ctrl** throttle
 - **F** aerobrake · **G** docking clamps · **B** retro-thrusters
 - **C** camera (chase / cockpit) · **Space** action · **1–5** pick a sortie
-- **Esc** pause · **R** restart · **M** mute · mouse steers gently
+- **Esc** pause · **R** restart · **M** mute · hold the left mouse button to steer with the mouse (dead zone around centre)
 - Thread the glowing gates, mind your fuel, dock slow with clamps down for
-  a GREASED grade. Crash or run the hull to zero and the sortie scores 0.
+  a GREASED grade. Slow down too much on low throttle and the ship stalls.
+  Score is gate progress + per-gate accuracy + time, minus damage and fuel
+  used, plus scoop / orbit / docking bonuses. Crash or run the hull to zero
+  and the sortie scores 0.
 
 ## Play it
 

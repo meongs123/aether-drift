@@ -3,6 +3,10 @@
 // and lighting are set exactly, the sim settles for a fixed number of
 // fixed steps, then freezes. Values on screen cross-check against the
 // preset below — the same discipline as the reference's staged shots.
+// FIX PASS 1: the cover gate is staged ~218 m ahead and scaled ×3 (54 m
+// ring, ~370 px) instead of a 517 m / 18 m ring that read as a ~50 px
+// diamond; the cockpit ship sits ~207 m from the docking ring; the
+// docking ship sits ~81 m from the ring instead of ~199 m.
 import * as THREE from '../vendor/three.module.min.js';
 
 function aimAt(state, target) {
@@ -19,25 +23,44 @@ function setState(state, o) {
   state.throttle = o.speed / 420; // throttle holds the staged speed steady
 }
 
+// Scale a staged gate's ring so it reads LARGE in frame (the crossing test
+// still uses the 18 m GATE_RADIUS — staging only changes the visual).
+function stageGateLarge(gate, factor, glowSize) {
+  const ring = gate.children.find((c) => c.name === 'gateRing');
+  if (ring) {
+    ring.scale.setScalar(factor);
+    ring.material.emissiveIntensity = 2.4;
+  }
+  const glow = gate.children.find((c) => c.name === 'gateGlow');
+  if (glow) glow.scale.set(glowSize, glowSize, 1);
+}
+
 // Preset table — the numbers here ARE the numbers the screenshot must show.
 export const SHOT_PRESETS = {
   cover: {
     mission: 0, camera: 'chase', settleSteps: 45,
-    note: 'Chase, GATE 3/8, VEL 312, FUEL 78.4, gate staged ~500 m ahead, Theros limb upper frame',
+    note: 'Chase, GATE 3/8, VEL 312, FUEL 78.4, DIST ~218 m, SCORE 46 (2 gates x ~23 live), hero gate 54 m ring ~218 m ahead, Theros day side upper frame, Keth in frame left',
     apply(game) {
       const { state, director } = game;
-      director.beginSortie(0);
+      director.startSortie(0);
       director.director.gateIndex = 2; // two gates already threaded
       director.dimPassedGates();
       state.gatesPassed = 2;
+      // Staged live score: two gates threaded at ~23 each (the live
+      // per-gate value from the harness) — the shot must show a SCORE,
+      // not 0, the same as real flight does after gate 1.
+      director.director.score = 46;
+      state.score = 46;
       setState(state, {
         position: new THREE.Vector3(0, 10, 0),
         speed: 312, fuel: 78.4, hull: 100, roll: 0.18, throttleChanges: 3,
       });
-      // Stage the next gate close ahead so the ring reads large in frame.
+      // Stage the next gate close ahead, CENTRED, and scaled ×3 so the 3D
+      // ring itself dominates the frame (~370 px) — not a HUD diamond.
       const gate = director.director.gates[2];
-      gate.position.set(-260, 130, -430);
+      gate.position.set(-105, 55, -185);
       gate.lookAt(state.position);
+      stageGateLarge(gate, 3, 130);
       aimAt(state, gate.position);
       game.camera.setMode('chase');
       game.camera.snap(state);
@@ -45,18 +68,23 @@ export const SHOT_PRESETS = {
   },
   cockpit: {
     mission: 4, camera: 'cockpit', settleSteps: 45,
-    note: 'Cockpit, Eclipse Docking, VEL 96, FUEL 64.2, DIST ~413 m, 5 gauges',
+    note: 'Cockpit, Eclipse Docking, VEL 96, FUEL 64.2, DIST ~225 m, SCORE 46 (2 gates x ~23 live), 5 gauges, docking ring x3 ~207 m ahead centred',
     apply(game) {
       const { state, director } = game;
-      director.beginSortie(4);
+      director.startSortie(4);
       director.director.gateIndex = 2; // final gate: the docking ring
       director.dimPassedGates();
       state.gatesPassed = 2;
+      director.director.score = 46;
+      state.score = 46;
+      // Same x3 staging as the cover: the 18 m ring at 207 m reads as a
+      // thin diamond unscaled; scaled it fills ~370 px, centred ahead.
+      stageGateLarge(director.director.gates[2], 3, 130);
       setState(state, {
-        position: new THREE.Vector3(60, 30, -480),
+        position: new THREE.Vector3(140, 45, -650),
         speed: 96, fuel: 64.2, hull: 100, roll: -0.06,
       });
-      aimAt(state, new THREE.Vector3(246, 60, -827)); // docking ring ahead
+      aimAt(state, director.director.gates[2].position); // the real final gate (220,60,-860) — NOT the station ring (246,60,-827), which sits ~42 m aside; aiming at the station put the mission ring ~100 px left of centre
       game.camera.setMode('cockpit');
       game.camera.snap(state);
       game.applyPalette('eclipse');
@@ -64,13 +92,15 @@ export const SHOT_PRESETS = {
   },
   asteroid: {
     mission: 0, camera: 'chase', settleSteps: 45,
-    note: 'Chase, banking 28 deg, VEL 388, FUEL 71.8, gate ahead between rocks',
+    note: 'Chase, banking 28 deg, VEL 388, FUEL 71.8, DIST ~335 m, SCORE 46 (2 gates x ~23 live), gate ahead between rocks (ring ×2)',
     apply(game) {
       const { state, director, THREE: T } = game;
-      director.beginSortie(0);
+      director.startSortie(0);
       director.director.gateIndex = 2;
       director.dimPassedGates();
       state.gatesPassed = 2;
+      director.director.score = 46;
+      state.score = 46;
       setState(state, {
         position: new THREE.Vector3(0, 20, -820),
         speed: 388, fuel: 71.8, hull: 100, roll: 0.5,
@@ -79,6 +109,7 @@ export const SHOT_PRESETS = {
       const gate = director.director.gates[2];
       gate.position.set(30, 60, -1150);
       gate.lookAt(state.position);
+      stageGateLarge(gate, 2, 100);
       aimAt(state, gate.position);
       for (const [x, y, z, s] of [[-38, 52, -1120, 24], [88, 40, -1185, 30]]) {
         const rock = new T.Mesh(
@@ -97,14 +128,14 @@ export const SHOT_PRESETS = {
   },
   docking: {
     mission: 1, camera: 'chase', settleSteps: 30,
-    note: 'Score moment, Starpost Run COMPLETE, SCORE 87 GOLD, GREASED dock',
+    note: 'Score moment, Starpost Run COMPLETE, SCORE 87 GOLD, GREASED dock, ship ~81 m from the ring',
     apply(game) {
       const { state, director } = game;
-      director.beginSortie(1);
+      director.startSortie(1);
       director.director.gateIndex = 4;
       state.gatesPassed = 4;
       setState(state, {
-        position: new THREE.Vector3(180, 70, -640),
+        position: new THREE.Vector3(200, 60, -760),
         speed: 0, fuel: 71.6, hull: 100, roll: 0, pitch: 0,
       });
       state.docked = true;

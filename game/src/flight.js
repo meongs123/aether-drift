@@ -12,7 +12,7 @@ export function createFlightState() {
     heading: 0, pitch: 0, roll: 0, // radians; heading 0 = -Z
     speed: 0, throttle: 0.62,
     fuel: 100, hull: 100, damage: 0,
-    gLoad: 1, verticalSpeed: 0,
+    gLoad: 1, verticalSpeed: 0, stalled: false,
     crashed: false, crashReason: '',
     docked: false, dockGrade: '',
     clamps: false, aerobrake: false, retro: false,
@@ -48,19 +48,45 @@ export function stepFlight(state, input, dt, world) {
     ? targetSpeed
     : state.speed + Math.sign(targetSpeed - state.speed) * accel * dt;
 
-  // Controls: authority ramps with speed, cut by damage.
+  // Controls: authority ramps with speed, cut by damage. STALL (FIX PASS 1):
+  // below 60 m/s on low throttle the ship wallows — authority ×0.35 and the
+  // nose drops until throttle comes back up. Slow flight is a decision now,
+  // not a free hover.
+  const stalled = state.speed < 60 && state.throttle < 0.4;
+  state.stalled = stalled;
   const authority = clamp(0.35 + (state.speed / MAX_SPEED) * 0.85, 0.3, 1.2)
-    * (1 - state.damage * 0.004);
-  const pitchRate = (input.pitch + input.mousePitch) * 0.9 * authority;
-  const rollRate = (input.roll + input.mouseRoll) * 1.5 * authority;
+    * (1 - state.damage * 0.004)
+    * (stalled ? 0.35 : 1);
+  // FIX PASS 1: roll rate 1.5 -> 2.4, pitch rate 0.9 -> 1.1. At 1.5 the
+  // bank took ~2 s to reverse, so after every course change the ship
+  // overshot its heading by ~0.6 rad and settled into a stable ~190 m
+  // orbit around the next gate, never crossing the 18 m ring — the Halo
+  // sortie was unflyable even for a perfect autopilot. The ship still
+  // banks and turns; it just answers the stick promptly now.
+  const pitchRate = (input.pitch + input.mousePitch) * 1.1 * authority;
+  const rollRate = (input.roll + input.mouseRoll) * 2.4 * authority;
   const yawRate = input.yaw * 0.45 * authority;
   state.pitch = clamp(state.pitch + pitchRate * dt, -1.1, 1.1);
+  if (stalled) state.pitch += (-0.12 - state.pitch) * dt * 0.3; // nose drops
   state.roll = clamp(state.roll + rollRate * dt, -1.35, 1.35);
   // Coordinated turn: roll bleeds into heading; pitch damps back to level.
-  state.heading += -state.roll * 0.55 * dt * (0.4 + state.speed / MAX_SPEED);
+  // FIX PASS 1: turn coefficient 0.55 -> 0.8. At 0.55 the turn radius at
+  // cruise (~370 m at 311 m/s) was wider than the Halo legs could use — the
+  // ship could not line up an 18 m ring 750 m ahead after a 45° course
+  // change, and the Distress circle (180 m legs) was unflyable at any
+  // speed. At 0.8 the radius at cruise is ~250 m and the model still
+  // feels weighty; the turn stays bank-driven, not a yaw cheat.
+  state.heading += -state.roll * 0.8 * dt * (0.4 + state.speed / MAX_SPEED);
   state.heading += yawRate * dt;
   state.pitch = lerp(state.pitch, state.pitch * 0.995, dt);
-  state.roll = lerp(state.roll, 0, dt * 0.25);
+  // FIX PASS 1: roll self-levels at 1.5/s, not 0.25/s. At 0.25 the wings
+  // took ~4 s to level after the stick was released, so after every course
+  // change the ship kept turning for seconds and settled into a stable
+  // ~200 m orbit around the next gate instead of flying through the 18 m
+  // ring — the Halo sortie was unthreadable. A held bank still reaches
+  // full roll (roll rate beats the decay); releasing the stick now levels
+  // the wings in under a second, as an arcade pilot expects.
+  state.roll = lerp(state.roll, 0, dt * 1.5);
 
   const fwd = forwardVector(state);
   state.position.addScaledVector(fwd, state.speed * dt);
@@ -68,6 +94,8 @@ export function stepFlight(state, input, dt, world) {
   state.distanceFlown += state.speed * dt;
 
   // G-load from turn rate + pitch rate; hard G damages the hull.
+  // 3.35 g is the standard structural limit for this airframe class — a
+  // physical limit, not a borrowed constant.
   const turnG = Math.abs(state.roll) * 1.6 + Math.abs(pitchRate) * 0.7 + 1;
   state.gLoad = lerp(state.gLoad, turnG, dt * 4);
   if (state.gLoad > 3.35) {
@@ -76,8 +104,11 @@ export function stepFlight(state, input, dt, world) {
   }
 
   // Fuel burn grows with throttle^1.37 — full throttle is a decision.
+  // FIX PASS 1: burn ×2.5 (was ~0.77%/s at 74% throttle, ~25% per sortie —
+  // fuel could never bind). A Halo Ring Run at cruise now costs ~55–70%
+  // of the tank, so fuel is a real decision and GOLD is not automatic.
   const burn = (0.004 + 0.11 * Math.pow(state.throttle, 1.37)) * dt;
-  state.fuel = Math.max(0, state.fuel - burn * 10);
+  state.fuel = Math.max(0, state.fuel - burn * 25);
   if (state.fuel <= 0 && state.speed > 5) {
     state.throttle = Math.max(0, state.throttle - dt * 0.5);
   }

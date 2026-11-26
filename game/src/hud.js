@@ -1,7 +1,9 @@
 // hud.js — one job: the hybrid HUD. DOM overlay (objective card, systems
 // bars, NAV minimap, footer hints) + full-screen 2D canvas instruments
 // (VEL/ALT/HDG tapes, attitude, V/S, DIST-TO-OBJECTIVE, 4 gauges chase /
-// 5 gauges cockpit, status strip). Every value is a direct read of ship
+// 5 gauges cockpit). The bottom edge belongs to the DOM footer (controls
+// legend) — the old canvas status strip was removed in fix pass 1 because
+// it collided with the footer; its values live in the HUD already.
 // state — never static decoration. Density matches the reference bar.
 import * as THREE from '../vendor/three.module.min.js';
 import { MISSIONS, SCORE, SHIP_NAME, SHIP_CALLSIGN, GAME_TITLE } from './config.js';
@@ -106,24 +108,36 @@ export function createHud(THREE) {
   function drawInstruments(w, h, state, director, cameraMode, gateScreen, gateDist, therosAlt) {
     const ctx = ictx;
     ctx.clearRect(0, 0, w, h);
+    // FIX PASS 1 (QA F6): phone layout. Below 700 px the instruments are
+    // drawn in a 700-wide virtual space scaled to fit, so tapes / gauges /
+    // the V-S box keep their desktop relative positions instead of colliding
+    // or running off the left edge. The NAV minimap is hidden by CSS on
+    // phones, so the gauges may use the right edge (rightClear 8, not 222).
+    const compact = w < 700;
+    const W = compact ? 700 : w;
+    const H = compact ? h / (w / 700) : h;
+    if (compact) ctx.save(), ctx.scale(w / 700, w / 700);
     const headingDeg = ((-(state.heading) * 180 / Math.PI) % 360 + 360) % 360;
     const mission = MISSIONS[director.missionIndex];
 
     // VEL tape (left), ALT tape (right), HDG tape (top centre).
-    drawTape(ctx, 14, h * 0.30, 86, h * 0.44, state.speed, 'm/s', 'VEL', '#39e6ff', { step: 20, range: 120, decimals: 0 });
-    drawTape(ctx, w - 100, h * 0.30, 86, h * 0.44, therosAlt, 'km', 'ALT', '#7cfc9a', { step: 10, range: 60, decimals: 1 });
-    // HDG tape — horizontal strip across the top.
+    drawTape(ctx, 14, H * 0.30, 86, H * 0.44, state.speed, 'm/s', 'VEL', '#39e6ff', { step: 20, range: 120, decimals: 0 });
+    drawTape(ctx, W - 100, H * 0.30, 86, H * 0.44, therosAlt, 'km', 'ALT', '#7cfc9a', { step: 10, range: 60, decimals: 1 });
+    // HDG tape — horizontal strip across the top. Skipped on phones: the
+    // objective card spans the full width there and would cover it (the
+    // gate marker is the phone's nav cue; cockpit keeps its HDG dial).
+    if (!compact) {
     ctx.save();
     ctx.fillStyle = 'rgba(4,10,18,0.72)';
-    ctx.fillRect(w / 2 - 190, 12, 380, 46);
-    ctx.strokeStyle = 'rgba(120,200,255,0.45)'; ctx.strokeRect(w / 2 - 190.5, 12.5, 380, 46);
+    ctx.fillRect(W / 2 - 190, 12, 380, 46);
+    ctx.strokeStyle = 'rgba(120,200,255,0.45)'; ctx.strokeRect(W / 2 - 190.5, 12.5, 380, 46);
     ctx.fillStyle = '#ffd166'; ctx.font = `bold 13px ${FONT}`; ctx.textAlign = 'left';
-    ctx.fillText('HDG', w / 2 - 182, 28);
+    ctx.fillText('HDG', W / 2 - 182, 28);
     ctx.textAlign = 'center';
     for (let d = Math.floor((headingDeg - 60) / 10) * 10; d <= headingDeg + 60; d += 10) {
       const dd = ((d % 360) + 360) % 360;
-      const dx = w / 2 + (dd - headingDeg) * 2.6;
-      if (dx < w / 2 - 185 || dx > w / 2 + 185) continue;
+      const dx = W / 2 + (dd - headingDeg) * 2.6;
+      if (dx < W / 2 - 185 || dx > W / 2 + 185) continue;
       const major = dd % 30 === 0;
       ctx.strokeStyle = major ? '#fff' : 'rgba(160,200,240,0.5)';
       ctx.beginPath(); ctx.moveTo(dx, 34); ctx.lineTo(dx, major ? 46 : 41); ctx.stroke();
@@ -134,23 +148,24 @@ export function createHud(THREE) {
       }
     }
     ctx.fillStyle = '#fff'; ctx.font = `bold 24px ${FONT}`;
-    ctx.fillText(`${String(Math.round(headingDeg)).padStart(3, '0')}°`, w / 2, 28);
+    ctx.fillText(`${String(Math.round(headingDeg)).padStart(3, '0')}°`, W / 2, 28);
     ctx.restore();
+    } // !compact — HDG tape
 
     // Attitude indicator, bottom centre-left; V/S + DIST readout beside it.
-    drawAttitude(ctx, w * 0.5 - 300, h - 118, 52, state.pitch, state.roll);
+    drawAttitude(ctx, W * 0.5 - 300, H - 118, 52, state.pitch, state.roll);
     ctx.save();
     ctx.fillStyle = 'rgba(4,10,18,0.78)';
-    ctx.fillRect(w * 0.5 - 230, h - 158, 180, 84);
-    ctx.strokeStyle = 'rgba(120,200,255,0.45)'; ctx.strokeRect(w * 0.5 - 230.5, h - 158.5, 180, 84);
+    ctx.fillRect(W * 0.5 - 230, H - 158, 180, 84);
+    ctx.strokeStyle = 'rgba(120,200,255,0.45)'; ctx.strokeRect(W * 0.5 - 230.5, H - 158.5, 180, 84);
     ctx.textAlign = 'left'; ctx.font = `bold 13px ${FONT}`;
-    ctx.fillStyle = '#39e6ff'; ctx.fillText('V/S', w * 0.5 - 218, h - 132);
+    ctx.fillStyle = '#39e6ff'; ctx.fillText('V/S', W * 0.5 - 218, H - 132);
     ctx.fillStyle = '#fff'; ctx.font = `bold 22px ${FONT}`;
-    ctx.fillText(`${state.verticalSpeed >= 0 ? '+' : ''}${fmt(state.verticalSpeed, 1)} m/s`, w * 0.5 - 218, h - 106);
+    ctx.fillText(`${state.verticalSpeed >= 0 ? '+' : ''}${fmt(state.verticalSpeed, 1)} m/s`, W * 0.5 - 218, H - 106);
     ctx.fillStyle = '#ffd166'; ctx.font = `bold 13px ${FONT}`;
-    ctx.fillText('DIST TO OBJECTIVE', w * 0.5 - 218, h - 88);
+    ctx.fillText('DIST TO OBJECTIVE', W * 0.5 - 218, H - 88);
     ctx.fillStyle = '#fff'; ctx.font = `bold 22px ${FONT}`;
-    ctx.fillText(state.docked ? 'DOCKED' : gateDist == null ? '—' : `${fmt(gateDist, 0)} m`, w * 0.5 - 218, h - 66);
+    ctx.fillText(state.docked ? 'DOCKED' : gateDist == null ? '—' : `${fmt(gateDist, 0)} m`, W * 0.5 - 218, H - 66);
     ctx.restore();
 
     // Gauges — 4 chase, 5 cockpit (extra HDG dial in the cockpit).
@@ -163,18 +178,21 @@ export function createHud(THREE) {
     if (cameraMode === 'cockpit') {
       gauges.push({ v: headingDeg, max: 360, label: 'HDG', color: '#c792ff', unit: 'deg' });
     }
-    const gw = 84, gap = 10;
+    const gw = compact ? 62 : 84, gap = compact ? 6 : 10;
     const totalW = gauges.length * gw + (gauges.length - 1) * gap;
     // Gauges live right of the V/S box, clear of the minimap (bottom-right).
-    let gx = cameraMode === 'cockpit' ? w / 2 - 40 : w / 2 + 20;
-    if (gx + totalW > w - 222) gx = w - 222 - totalW;
-    gauges.forEach((g, i) => drawGauge(ctx, gx + i * (gw + gap) + gw / 2, h - 118, 38, g.v, g.max, g.label, g.color, g.unit));
+    // Phone: lifted 14 virtual px so the dial labels clear the bottom edge.
+    const gaugeY = compact ? H - 132 : H - 118;
+    let gx = cameraMode === 'cockpit' ? W / 2 - 40 : W / 2 + 20;
+    const rightClear = compact ? 8 : 222;
+    if (gx + totalW > W - rightClear) gx = W - rightClear - totalW;
+    gauges.forEach((g, i) => drawGauge(ctx, gx + i * (gw + gap) + gw / 2, gaugeY, compact ? 28 : 38, g.v, g.max, g.label, g.color, g.unit));
 
     // Next-gate marker projected on screen.
     if (gateScreen && gateDist != null && director.status === 'flying') {
-      const sx = (gateScreen.x * 0.5 + 0.5) * w;
-      const sy = (0.5 - gateScreen.y * 0.5) * h;
-      if (sx > 90 && sx < w - 90 && sy > 70 && sy < h - 180) {
+      const sx = (gateScreen.x * 0.5 + 0.5) * W;
+      const sy = (0.5 - gateScreen.y * 0.5) * H;
+      if (sx > 90 && sx < W - 90 && sy > 70 && sy < H - 180) {
         ctx.save();
         ctx.strokeStyle = '#39e6ff'; ctx.lineWidth = 2.5;
         ctx.beginPath();
@@ -187,17 +205,12 @@ export function createHud(THREE) {
       }
     }
 
-    // Status strip (bottom, full width).
-    ctx.save();
-    ctx.fillStyle = 'rgba(4,10,18,0.8)';
-    ctx.fillRect(0, h - 30, w, 30);
-    ctx.fillStyle = '#cfe6ff'; ctx.font = `bold 13px ${FONT}`; ctx.textAlign = 'left';
-    const strip = `FUEL ${fmt(state.fuel, 1)}%   THR ${Math.round(state.throttle * 100)}%   CLAMPS ${state.clamps ? 'DOWN' : 'UP'}   G ${fmt(state.gLoad, 2)}   CAM ${cameraMode.toUpperCase()}   ${SHIP_NAME} ${SHIP_CALLSIGN}   ${mission.name.toUpperCase()}   SCORE ${state.score}`;
-    ctx.fillText(strip, 14, h - 10);
-    ctx.restore();
-  }
-
-  function drawMinimap(state, director) {
+    // No canvas status strip: the DOM footer (controls legend) now owns
+    // the bottom edge, and every strip value already lives in the HUD
+    // (SYSTEMS bars, objective card, sys-status incl. CLAMPS). Drawing
+    // the strip too put two text lines on top of each other.
+    if (compact) ctx.restore();
+  }  function drawMinimap(state, director) {
     const ctx = mctx;
     const W = 190, H = 190;
     ctx.clearRect(0, 0, W, H);
@@ -240,9 +253,24 @@ export function createHud(THREE) {
     const mission = MISSIONS[director.missionIndex];
     const best = director.best ? director.best(director.missionIndex) : null;
     el('obj-mission').textContent = `${mission.name} — ${mission.place}`;
-    el('obj-gate').textContent = director.status === 'complete'
-      ? `COMPLETE · SCORE ${director.score} · ${director.medal}`
-      : `GATE ${Math.min(director.gateIndex + 1, director.gates.length)}/${director.gates.length}`;
+    // Objective line carries the live verb progress: scoop count on Comet
+    // Scoop, orbit degrees on Distress Orbit — the verbs are visible in
+    // the HUD, not just in the objective text.
+    let gateLine;
+    if (director.status === 'complete') {
+      gateLine = `COMPLETE · SCORE ${director.score} · ${director.medal}`;
+    } else {
+      gateLine = `GATE ${Math.min(director.gateIndex + 1, director.gates.length)}/${director.gates.length}`;
+      if (mission.id === 'comet-scoop') {
+        gateLine += ` · SCOOP ${director.scoop.window}/${director.scoop.checked}`;
+        if (director.scoop.dropped === true) gateLine += ' · BUOY DROP CLEAN';
+        if (director.scoop.dropped === false) gateLine += ' · BUOY DROP MISSED — TOO FAST';
+      }
+      if (mission.id === 'distress-orbit') {
+        gateLine += ` · ORBIT ${Math.round(director.orbitDeg)}°/245°`;
+      }
+    }
+    el('obj-gate').textContent = gateLine;
     el('obj-text').textContent = mission.objective;
     el('obj-score').textContent = `SCORE ${state.score}   BEST ${best ? `${best.score} ${best.medal}` : '—'}`;
     const setBar = (id, v) => {
@@ -260,20 +288,29 @@ export function createHud(THREE) {
       ? `CRASHED — ${state.crashReason}`
       : state.docked
         ? `DOCKED · ${state.dockGrade}`
-        : `CAM ${cameraMode.toUpperCase()} · G ${fmt(state.gLoad, 2)} · ${SHIP_CALLSIGN}`;
+        : `${state.stalled ? 'STALL — THROTTLE UP · ' : ''}CLAMPS ${state.clamps ? 'DOWN' : 'UP'} · CAM ${cameraMode.toUpperCase()} · G ${fmt(state.gLoad, 2)} · ${SHIP_CALLSIGN}`;
     const banner = el('banner');
     if (director.status === 'complete') {
       banner.style.display = 'block';
+      // FIX PASS 1 (RT F4): the centred banner used to sit at 38% height —
+      // right over the docking ring / station. The score banner now docks
+      // to the top, below the HDG tape, so the ring stays visible.
+      banner.style.top = '76px';
+      banner.style.transform = 'translate(-50%, 0)';
       el('banner-title').textContent = `SORTIE COMPLETE — ${mission.name}`;
       el('banner-sub').textContent = `SCORE ${director.score} · ${director.medal} MEDAL${director.dockGrade ? ` · DOCKING ${director.dockGrade}` : ''} · Press R to fly again, 1–5 for another sortie`;
       banner.className = 'banner complete';
     } else if (state.crashed) {
       banner.style.display = 'block';
+      banner.style.top = '';
+      banner.style.transform = '';
       el('banner-title').textContent = 'SHIP LOST';
       el('banner-sub').textContent = `${state.crashReason} — Press R to fly again`;
       banner.className = 'banner crashed';
     } else if (director.status === 'briefing') {
       banner.style.display = 'block';
+      banner.style.top = '';
+      banner.style.transform = '';
       el('banner-title').textContent = `${GAME_TITLE}`;
       el('banner-sub').textContent = `${mission.name}: ${mission.objective} — Click to fly, 1–5 to pick a sortie, C camera, Esc pause`;
       banner.className = 'banner briefing';

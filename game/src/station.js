@@ -18,25 +18,28 @@ export function createPortSolenne(THREE) {
   const hab = new THREE.Mesh(new THREE.TorusGeometry(34, 7, 12, 40), hullMat);
   hab.name = 'habitatRing'; group.add(hab);
   for (const s of [-1, 1]) {
-    const wing = new THREE.Mesh(new THREE.BoxGeometry(70, 0.8, 18), new THREE.MeshStandardMaterial({ color: 0x1c4d8f, roughness: 0.35, metalness: 0.7 }));
+    // FIX PASS 1: wings were dark blue at metalness 0.7 — they rendered as
+    // unlit black slabs on the night side. Brighter blue, low metalness.
+    const wing = new THREE.Mesh(new THREE.BoxGeometry(70, 0.8, 18), new THREE.MeshStandardMaterial({ color: 0x2f6fc0, roughness: 0.35, metalness: 0.25, emissive: 0x0a2a4a, emissiveIntensity: 0.4 }));
     wing.position.set(s * 48, 0, 0); wing.name = 'solarWing'; group.add(wing);
     const mast = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.2, 14, 8), darkMat);
     mast.rotation.z = Math.PI / 2; mast.position.set(s * 14, 0, 0); group.add(mast);
   }
   // Docking ring: the lit approach target — big, glowing, centred ahead.
+  // FIX PASS 1: brighter emissive + larger glow so the ring reads at range.
   const dockRing = new THREE.Mesh(
     new THREE.TorusGeometry(26, 1.6, 12, 64),
-    new THREE.MeshStandardMaterial({ map: makeGateTexture(THREE), emissive: 0x39e6ff, emissiveIntensity: 1.2, roughness: 0.4 }),
+    new THREE.MeshStandardMaterial({ map: makeGateTexture(THREE), emissive: 0x39e6ff, emissiveIntensity: 2.4, roughness: 0.4 }),
   );
   dockRing.position.set(0, 0, 78);
   dockRing.name = 'dockingRing';
   group.add(dockRing);
   const dockGlow = new THREE.Sprite(new THREE.SpriteMaterial({
     map: makeGlowTexture(THREE, 'rgba(57,230,255,0.9)', 'rgba(57,230,255,0.25)'),
-    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0.75,
+    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0.9,
   }));
   dockGlow.position.copy(dockRing.position);
-  dockGlow.scale.set(60, 60, 1);
+  dockGlow.scale.set(90, 90, 1);
   dockGlow.name = 'dockingGlow';
   group.add(dockGlow);
   // Approach corridor lights: a row of amber beacons leading to the ring.

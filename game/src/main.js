@@ -85,7 +85,10 @@ const streaks = createSpeedStreaks(THREE, scene, 160, rng);
 
 const game = { THREE, scene, state, director: mission, camera, ship, world, applyPalette };
 mission.director.best = mission.bestFor;
-mission.beginSortie(0);
+mission.startSortie(0);
+// FIX PASS 1: per-mission spawn — the ship starts ~350 m before gate 1,
+// not 2 km out in black void.
+applySpawn(0);
 mission.director.status = 'briefing';
 
 const input = bindPilotInput({
@@ -100,17 +103,35 @@ const input = bindPilotInput({
   },
   onMission: (i) => {
     restart();
-    mission.beginSortie(i);
+    mission.startSortie(i);
+    applySpawn(i);
     mission.director.status = 'flying';
     applyPalette(MISSIONS[i].night ? 'eclipse' : 'day');
   },
 });
 
+function applySpawn(i) {
+  const s = MISSIONS[i]?.spawn;
+  if (s) state.position.set(s[0], s[1], s[2]);
+  // Face gate 1 from the spawn, so the first thing the pilot sees is the
+  // target ahead — not empty sky while the gate sits behind them.
+  const gate = mission.nextGate();
+  if (gate) {
+    const dx = gate.position.x - state.position.x;
+    const dy = gate.position.y - state.position.y;
+    const dz = gate.position.z - state.position.z;
+    const len = Math.hypot(dx, dy, dz) || 1;
+    state.heading = Math.atan2(-dx, -dz);
+    state.pitch = Math.asin(Math.max(-1, Math.min(1, dy / len)));
+    state.roll = 0;
+  }
+}
+
 function restart() {
   const keepMission = mission.director.missionIndex;
   Object.assign(state, createFlightState());
-  state.position.set(0, 0, 0);
-  mission.beginSortie(keepMission);
+  mission.startSortie(keepMission);
+  applySpawn(keepMission);
   mission.director.status = 'flying';
   applyPalette(MISSIONS[keepMission].night ? 'eclipse' : 'day');
   camera.setMode('chase');
@@ -160,7 +181,7 @@ function frame(now) {
   requestAnimationFrame(frame);
   let dt = Math.min(0.1, (now - last) / 1000);
   last = now;
-  if (input.paused) { renderFrame(); return; }
+  if (input.paused) { renderFrame(dt); return; }
   acc += dt;
   let steps = 0;
   while (acc >= FIXED_DT && steps < 5) {
@@ -177,11 +198,16 @@ function frame(now) {
   }
   if (acc > FIXED_DT * 5) acc = 0;
 
-  // Ship transform follows state.
+  // Ship transform follows state. Roll is NEGATED here: D gives state.roll
+  // +1 (bank right) and the turn goes right, so the visual bank must be
+  // rotation.z = -roll — positive rotation.z would bank the ship LEFT while
+  // it turns right (QA F2).
   ship.group.position.copy(state.position);
-  ship.group.rotation.set(state.pitch, state.heading, state.roll, 'YXZ');
+  ship.group.rotation.set(state.pitch, state.heading, -state.roll, 'YXZ');
   // Engine glow breathes with throttle; thruster particles at speed.
-  const glowScale = 2.2 + state.throttle * 2.2;
+  // FIX PASS 1: bigger glow so it reads in the cover shot, not just at
+  // close range (was 2.2 + thr*2.2).
+  const glowScale = 3.0 + state.throttle * 3.0;
   for (const g of ship.engines) g.scale.set(glowScale, glowScale, 1);
   ship.engineLight.intensity = 6 + state.throttle * 14;
   if (!staged && state.speed > 60 && mission.director.status === 'flying') {
@@ -200,16 +226,19 @@ function frame(now) {
   marrow.userData.flare.material.opacity = 0.55 + 0.4 * Math.sin(effNow * 0.004);
   if (!staged) comet.position.x += Math.sin(now * 0.00005) * 0.01;
 
-  renderFrame();
+  renderFrame(dt);
   frames++;
   if (frames === 10 && !window.__AETHER_READY__) {
     window.__AETHER_READY__ = true;
   }
 }
 
-function renderFrame() {
+function renderFrame(dt) {
   if (staged) camera.snap(state); // frozen chase framing, exact every run
-  const cam = camera.update(state, 1 / 60);
+  // FIX PASS 1 (QA note b): the chase lerp used a fixed 1/60 s regardless of
+  // real frame time, so at low fps the camera lagged ~100 m behind the ship.
+  // Pass the real dt.
+  const cam = camera.update(state, dt ?? 1 / 60);
   // Next-gate screen projection for the HUD marker.
   const gate = mission.nextGate();
   let gateDist = null;
@@ -219,7 +248,9 @@ function renderFrame() {
   } else {
     gateScreen.set(0, 0, 2);
   }
-  const therosAlt = Math.max(0, (state.position.distanceTo(theros.position) - 520) * 0.1);
+  // Docked at the station, "altitude above Theros" is meaningless — show
+  // 0.0 instead of a stray 135.0 km (RT F13b).
+  const therosAlt = state.docked ? 0 : Math.max(0, (state.position.distanceTo(theros.position) - 520) * 0.1);
   hud.drawInstruments(window.innerWidth, window.innerHeight, state, mission.director, camera.getMode(), gateScreen, gateDist, therosAlt);
   hud.drawMinimap(state, mission.director);
   hud.updateDom(state, mission.director, camera.getMode());
@@ -228,5 +259,4 @@ function renderFrame() {
 }
 
 document.title = GAME_TITLE;
-window.__AETHER_SCENE__ = scene; // debug hook: lets a probe hide groups
 requestAnimationFrame(frame);

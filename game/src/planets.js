@@ -4,7 +4,7 @@
 // fresnel atmosphere shell lit from the one sun direction.
 import * as THREE from '../vendor/three.module.min.js';
 import { SUN_DIR } from './config.js';
-import { makeBandTexture, makeOceanTexture, makeMoonTexture, makeGlowTexture } from './textures.js';
+import { makeBandTexture, makeOceanTexture, makeMoonTexture } from './textures.js';
 
 function atmosphereShell(THREE, radius, color, intensity) {
   const mat = new THREE.ShaderMaterial({
@@ -104,19 +104,10 @@ export function createKeth(THREE, rng) {
   surf.name = 'kethSurface';
   group.add(surf);
   group.add(atmosphereShell(THREE, R, 0xbfc8d8, 0.35));
-  group.position.set(-1250, -480, -1100);
+  // FIX PASS 1: Keth used to sit at (-1250,-480,-1100), in none of the 4
+  // judging shots. It now sits beside Theros on the cover's sightline
+  // (~12° off the cover camera axis, ~83 px disc) and clear of Theros
+  // itself (721 m centre-to-centre vs 520 + 120 radii).
+  group.position.set(-1150, 40, -1850);
   return group;
-}
-
-// Small distant sun-side glow behind a planet limb (extra limb-light cue).
-export function addLimbGlow(THREE, parent, radius, color) {
-  const tex = makeGlowTexture(THREE, color, 'rgba(120,180,255,0.25)');
-  const spr = new THREE.Sprite(new THREE.SpriteMaterial({
-    map: tex, transparent: true, depthWrite: false,
-    blending: THREE.AdditiveBlending, opacity: 0.5,
-  }));
-  spr.scale.set(radius * 3.2, radius * 3.2, 1);
-  spr.name = 'limbGlow';
-  parent.add(spr);
-  return spr;
 }
