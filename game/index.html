@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:,">
+<title>AETHER DRIFT — Deep-Space Courier</title>
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #04060d;
+    font-family: ui-monospace, Menlo, Consolas, monospace; color: #dfeeff; }
+  #view { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+  #instruments { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+  .panel { position: fixed; background: rgba(4,10,18,0.72); border: 1px solid rgba(120,200,255,0.35);
+    border-radius: 6px; padding: 10px 12px; pointer-events: none; backdrop-filter: blur(2px); }
+  #objective { top: 60px; left: 12px; min-width: 300px; }
+  #objective h1 { margin: 0 0 2px; font-size: 17px; letter-spacing: 1px; color: #fff; }
+  #objective h1 span { color: #39e6ff; }
+  #obj-gate { font-size: 15px; font-weight: bold; color: #ffd166; margin: 2px 0; }
+  #obj-text { font-size: 12px; color: #bcd8f0; margin: 2px 0; }
+  #obj-score { font-size: 12px; color: #7cfc9a; margin-top: 4px; }
+  #systems { top: 12px; right: 12px; width: 230px; }
+  #systems h2 { margin: 0 0 6px; font-size: 12px; letter-spacing: 2px; color: #39e6ff; }
+  .bar-row { display: flex; align-items: center; gap: 8px; margin: 5px 0; font-size: 12px; }
+  .bar-row label { width: 44px; color: #bcd8f0; }
+  .bar-track { flex: 1; height: 10px; background: rgba(255,255,255,0.12); border-radius: 3px; overflow: hidden; }
+  .bar-fill { height: 100%; background: #7cfc9a; transition: width 0.15s; }
+  .bar-row span { width: 44px; text-align: right; color: #fff; }
+  #sys-status { font-size: 11px; color: #9fc3e8; margin-top: 6px; }
+  #minimap-wrap { right: 12px; bottom: 44px; padding: 6px; text-align: center; }
+  #minimap-wrap div { font-size: 11px; letter-spacing: 2px; color: #39e6ff; margin-top: 2px; }
+  #footer { left: 12px; bottom: 12px; font-size: 12px; color: #9fc3e8; background: rgba(4,10,18,0.6);
+    padding: 6px 10px; border-radius: 4px; }
+  #footer b { color: #fff; }
+  .banner { position: fixed; left: 50%; top: 38%; transform: translate(-50%, -50%);
+    text-align: center; background: rgba(4,10,18,0.82); border: 1px solid rgba(57,230,255,0.5);
+    border-radius: 8px; padding: 22px 34px; pointer-events: none; max-width: 640px; }
+  .banner h2 { margin: 0 0 8px; font-size: 26px; letter-spacing: 2px; color: #fff; }
+  .banner p { margin: 0; font-size: 14px; color: #bcd8f0; line-height: 1.5; }
+  .banner.complete { border-color: rgba(124,252,154,0.7); }
+  .banner.complete h2 { color: #7cfc9a; }
+  .banner.crashed { border-color: rgba(255,93,115,0.7); }
+  .banner.crashed h2 { color: #ff5d73; }
+  #brand { position: fixed; left: 12px; top: 12px; font-size: 12px; letter-spacing: 2px;
+    color: #39e6ff; background: rgba(4,10,18,0.72); border: 1px solid rgba(120,200,255,0.35);
+    border-radius: 6px; padding: 8px 10px; pointer-events: none; }
+  #brand b { color: #fff; font-size: 14px; }
+  #status { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+</style>
+</head>
+<body>
+<canvas id="view" aria-label="AETHER DRIFT: fly the ISV Aetherwing through deep space"></canvas>
+<canvas id="instruments"></canvas>
+
+<div id="brand"><b>AETHER DRIFT</b><br>DEEP-SPACE COURIER</div>
+
+<div id="objective" class="panel">
+  <h1><span>ISV AETHERWING</span> · AD-AW07</h1>
+  <div id="obj-mission">Halo Ring Run — Theros</div>
+  <div id="obj-gate">GATE 1/8</div>
+  <div id="obj-text">Thread all 8 halo gates around Theros</div>
+  <div id="obj-score">SCORE 0&nbsp;&nbsp; BEST —</div>
+</div>
+
+<div id="systems" class="panel">
+  <h2>SHIP SYSTEMS</h2>
+  <div class="bar-row"><label>HULL</label><div class="bar-track"><div class="bar-fill" id="bar-hull" style="width:100%"></div></div><span id="val-hull">100%</span></div>
+  <div class="bar-row"><label>FUEL</label><div class="bar-track"><div class="bar-fill" id="bar-fuel" style="width:100%"></div></div><span id="val-fuel">100%</span></div>
+  <div class="bar-row"><label>THR</label><div class="bar-track"><div class="bar-fill" id="bar-thr" style="width:62%"></div></div><span id="val-thr">62%</span></div>
+  <div id="sys-status">CAM CHASE · G 1.00 · AD-AW07</div>
+</div>
+
+<div id="minimap-wrap" class="panel">
+  <canvas id="minimap" width="190" height="190"></canvas>
+  <div>NAV · VEIL REACH</div>
+</div>
+
+<div id="footer"><b>W/S</b> pitch · <b>A/D</b> roll · <b>Q/E</b> yaw · <b>Shift/Ctrl</b> throttle · <b>F</b> aerobrake · <b>G</b> clamps · <b>B</b> retro · <b>C</b> camera · <b>Space</b> action · <b>1–5</b> sortie · <b>Esc</b> pause · <b>R</b> restart · <b>M</b> mute</div>
+
+<div id="banner" class="banner briefing">
+  <h2 id="banner-title">AETHER DRIFT — Deep-Space Courier</h2>
+  <p id="banner-sub">Halo Ring Run: Thread all 8 halo gates around Theros — Click to fly, 1–5 to pick a sortie, C camera, Esc pause</p>
+</div>
+
+<p id="status" role="status" aria-live="polite"></p>
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>
