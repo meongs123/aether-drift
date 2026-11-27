@@ -3,7 +3,7 @@
 // fixed-timestep loop (1/90 s), deterministic ?shot= presets, and the
 // ready flag the screenshot harness waits on.
 import * as THREE from '../vendor/three.module.min.js';
-import { SUN_DIR, SUN_COLOR, AMBIENT_COLOR, SPACE_BG, MISSIONS, FIXED_DT, PALETTES, GAME_TITLE } from './config.js';
+import { SUN_DIR, SUN_COLOR, AMBIENT_COLOR, SPACE_BG, MISSIONS, FIXED_DT, PALETTES, GAME_TITLE, MAX_SPEED } from './config.js';
 import { mulberry32 } from './random.js';
 import { createStarfield } from './starfield.js';
 import { createNebula } from './nebula.js';
@@ -19,6 +19,7 @@ import { createHud } from './hud.js';
 import { buildFlightAudio } from './audio.js';
 import { createThrusterParticles, createSpeedStreaks } from './effects.js';
 import { applyShotPreset } from './shots.js';
+import { createPostFX } from './postfx.js';
 
 const params = new URLSearchParams(location.search);
 const shotName = params.get('shot');
@@ -27,7 +28,8 @@ const rng = mulberry32(seed);
 
 window.addEventListener('error', (e) => { window.__AETHER_ERROR__ = String(e.message || e.error); });
 
-// ---- Renderer (pixel-ratio cap 1.5, no shadow maps, no post-processing) ----
+// ---- Renderer (pixel-ratio cap 1.5, no shadow maps; post-processing is
+// the hand-rolled composer in postfx.js — bloom + chromatic aberration) ----
 const view = document.getElementById('view');
 const renderer = new THREE.WebGLRenderer({ canvas: view, antialias: true, powerPreference: 'high-performance' });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
@@ -39,6 +41,11 @@ renderer.shadowMap.enabled = false;
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(SPACE_BG);
+// PASS 4: exponential depth fog (colour = the void itself, so distant
+// rocks/station fade into black, never grey). Density comes from the
+// active palette in applyPalette(); planet surfaces + the Theros ring
+// opt out with fog:false in planets.js.
+scene.fog = new THREE.FogExp2(SPACE_BG, PALETTES.day.fog);
 
 // ---- Lights: ONE directional sun + one hemisphere + a dim cool fill from
 // behind the camera so the ship's rear and the camera-facing rock faces
@@ -56,7 +63,13 @@ function applyPalette(name) {
   const p = PALETTES[name] || PALETTES.day;
   sun.intensity = p.sun;
   hemi.intensity = p.ambient;
+  if (p.fog != null && scene.fog) scene.fog.density = p.fog;
 }
+
+// PASS 4: hand-rolled post chain (bloom + chromatic aberration in the
+// composite pass). Created after the renderer so it can read the drawing
+// buffer size; resize() below keeps its targets in step with the canvas.
+const postfx = createPostFX(THREE, renderer);
 
 // ---- World (seeded — same seed, same world) ----
 createStarfield(scene, rng);
@@ -145,6 +158,7 @@ function resize() {
   camera.cockpit.aspect = window.innerWidth / window.innerHeight;
   camera.cockpit.updateProjectionMatrix();
   hud.resize(window.innerWidth, window.innerHeight);
+  postfx.resize();
 }
 window.addEventListener('resize', resize);
 resize();
@@ -255,7 +269,15 @@ function renderFrame(dt) {
   hud.drawMinimap(state, mission.director);
   hud.updateDom(state, mission.director, camera.getMode());
   audio.update(state.throttle, state.speed);
-  renderer.render(scene, cam);
+  // PASS 4: the rim-light shell sits around the hull, so from the seat
+  // eye it would wrap the camera in glow — hide it in cockpit mode
+  // (the canopy + panel already fill that view).
+  ship.rimShell.visible = camera.getMode() !== 'cockpit';
+  // PASS 4: bloom + chromatic aberration via the hand-rolled composer.
+  // The aberration is a pure function of speed (0.0015 parked → 0.003
+  // at full throttle), so staged frames stay deterministic.
+  const speed01 = Math.min(1, Math.max(0, state.speed / MAX_SPEED));
+  postfx.render(scene, cam, { aberration: 0.0015 + speed01 * 0.0015 });
 }
 
 document.title = GAME_TITLE;

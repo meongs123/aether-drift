@@ -7,6 +7,8 @@ import { SUN_DIR } from './config.js';
 import { makeBandTexture, makeOceanTexture, makeMoonTexture } from './textures.js';
 
 function atmosphereShell(THREE, radius, color, intensity) {
+  // ShaderMaterial: scene.fog never applies here (no fog chunks), so the
+  // rim stays crisp at any distance — same for the ship rim shell.
   const mat = new THREE.ShaderMaterial({
     transparent: true, blending: THREE.AdditiveBlending, side: THREE.BackSide,
     depthWrite: false,
@@ -44,7 +46,10 @@ export function createTheros(THREE, rng) {
   const R = 520;
   const surf = new THREE.Mesh(
     new THREE.SphereGeometry(R, 64, 48),
-    new THREE.MeshStandardMaterial({ map: makeBandTexture(THREE, rng), roughness: 0.9, metalness: 0.0 }),
+    // PASS 4: fog:false — at 2.3 km even the thin FogExp2 would grey the
+    // banded day side out; the atmosphere shell (ShaderMaterial) never
+    // takes fog anyway.
+    new THREE.MeshStandardMaterial({ map: makeBandTexture(THREE, rng), roughness: 0.9, metalness: 0.0, fog: false }),
   );
   surf.name = 'therosSurface';
   group.add(surf);
@@ -68,7 +73,9 @@ export function createTheros(THREE, rng) {
   })();
   const ring = new THREE.Mesh(
     new THREE.RingGeometry(R * 1.25, R * 2.15, 96, 1),
-    new THREE.MeshBasicMaterial({ map: ringTex, transparent: true, side: THREE.DoubleSide, depthWrite: false }),
+    // PASS 4: fog:false — MeshBasicMaterial defaults fog:true, and the
+    // ring spans 2.3–5.2 km out; fog would wash the gradient band grey.
+    new THREE.MeshBasicMaterial({ map: ringTex, transparent: true, side: THREE.DoubleSide, depthWrite: false, fog: false }),
   );
   ring.rotation.x = 0.9; // tilted face-on to the flight corridor, not edge-on
   ring.rotation.y = 0.3;
@@ -84,7 +91,8 @@ export function createVeyla(THREE, rng) {
   const R = 260;
   const surf = new THREE.Mesh(
     new THREE.SphereGeometry(R, 48, 32),
-    new THREE.MeshStandardMaterial({ map: makeOceanTexture(THREE, rng), roughness: 0.55, metalness: 0.05 }),
+    // PASS 4: fog:false — same reason as Theros (2.4 km out).
+    new THREE.MeshStandardMaterial({ map: makeOceanTexture(THREE, rng), roughness: 0.55, metalness: 0.05, fog: false }),
   );
   surf.name = 'veylaSurface';
   group.add(surf);
@@ -99,7 +107,8 @@ export function createKeth(THREE, rng) {
   const R = 120;
   const surf = new THREE.Mesh(
     new THREE.SphereGeometry(R, 40, 28),
-    new THREE.MeshStandardMaterial({ map: makeMoonTexture(THREE, rng), roughness: 1.0, metalness: 0.0 }),
+    // PASS 4: fog:false — same reason as Theros.
+    new THREE.MeshStandardMaterial({ map: makeMoonTexture(THREE, rng), roughness: 1.0, metalness: 0.0, fog: false }),
   );
   surf.name = 'kethSurface';
   group.add(surf);

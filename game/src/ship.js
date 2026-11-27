@@ -3,6 +3,7 @@
 // livery "AD-AW07", engine glow. Plus the cockpit interior (panel + canopy
 // frame) that only the seat-eye camera sees. No sprites pretending to be a ship.
 import * as THREE from '../vendor/three.module.min.js';
+import { SUN_DIR } from './config.js';
 import { makeLiveryTexture, makeGlowTexture, makePanelTexture } from './textures.js';
 
 export function buildShipModel(THREE) {
@@ -39,6 +40,46 @@ export function buildShipModel(THREE) {
   hull.scale.set(1, 1, 0.62);
   hull.name = 'hull';
   group.add(hull);
+
+  // PASS 4: rim-light shell — the same lofted hull profile, scaled ~1.04
+  // and rendered BackSide with a fresnel shader (same pattern as the
+  // planet atmosphere shells in planets.js: pow ~4, sun-gated, additive).
+  // Only the silhouette edge lights up, so the ship pops against the
+  // void and the dark side of a planet. +1 draw call, no per-asteroid
+  // shells. Hidden in cockpit mode by main.js (the seat eye sits inside
+  // it, so it would wrap the camera in glow). ShaderMaterial ignores
+  // scene.fog by default, so the shell never gets fogged at range.
+  const rimMat = new THREE.ShaderMaterial({
+    transparent: true, blending: THREE.AdditiveBlending, side: THREE.BackSide,
+    depthWrite: false,
+    uniforms: {
+      sunDir: { value: SUN_DIR.clone() },
+      rimColor: { value: new THREE.Color(0x66ccff) },
+      intensity: { value: 0.6 },
+    },
+    vertexShader: `
+      varying vec3 vNormal; varying vec3 vWorldPos;
+      void main() {
+        vNormal = normalize(mat3(modelMatrix) * normal);
+        vec4 wp = modelMatrix * vec4(position, 1.0);
+        vWorldPos = wp.xyz;
+        gl_Position = projectionMatrix * viewMatrix * wp;
+      }`,
+    fragmentShader: `
+      uniform vec3 sunDir; uniform vec3 rimColor; uniform float intensity;
+      varying vec3 vNormal; varying vec3 vWorldPos;
+      void main() {
+        vec3 viewDir = normalize(cameraPosition - vWorldPos);
+        float fres = pow(1.0 - abs(dot(viewDir, normalize(vNormal))), 4.0);
+        float sunSide = clamp(dot(normalize(vNormal), sunDir) * 0.5 + 0.75, 0.0, 1.0);
+        gl_FragColor = vec4(rimColor, fres * sunSide * intensity);
+      }`,
+  });
+  const rimShell = new THREE.Mesh(new THREE.LatheGeometry(profile, 14), rimMat);
+  rimShell.rotation.x = -Math.PI / 2;
+  rimShell.scale.set(1.04, 1.04, 0.62 * 1.04);
+  rimShell.name = 'rimShell';
+  group.add(rimShell);
 
   // Dorsal spine + nose stripe.
   const spine = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.35, 6.4), tealTrim);
@@ -165,5 +206,5 @@ export function buildShipModel(THREE) {
   cockpit.add(frameTop);
   group.add(cockpit);
 
-  return { group, engines, engineLight, cockpit };
+  return { group, engines, engineLight, cockpit, rimShell };
 }
