@@ -39,7 +39,7 @@ function stageGateLarge(gate, factor, glowSize) {
 export const SHOT_PRESETS = {
   cover: {
     mission: 0, camera: 'chase', settleSteps: 45,
-    note: 'Chase, GATE 3/8, VEL 312, FUEL 78.4, DIST ~218 m, SCORE 46 (2 gates x ~23 live), hero gate 54 m ring ~218 m ahead, Theros day side upper frame, Keth in frame left',
+    note: 'Chase, GATE 3/8, VEL 312, FUEL 78.4, DIST ~218 m, SCORE 46 (2 gates x ~23 live), hero gate 63 m ring ~218 m ahead, Theros day side upper frame, Keth in frame left',
     apply(game) {
       const { state, director } = game;
       director.startSortie(0);
@@ -60,50 +60,57 @@ export const SHOT_PRESETS = {
       const gate = director.director.gates[2];
       gate.position.set(-105, 55, -185);
       gate.lookAt(state.position);
-      stageGateLarge(gate, 3, 130);
+      // Ring x3.5 (was x3) — one size up so the hero ring dominates even
+      // more of the frame (~430 px) against Theros' bands.
+      stageGateLarge(gate, 3.5, 150);
       aimAt(state, gate.position);
       game.camera.setMode('chase');
       game.camera.snap(state);
     },
   },
   cockpit: {
-    mission: 4, camera: 'cockpit', settleSteps: 45,
-    note: 'Cockpit, Eclipse Docking, VEL 96, FUEL 64.2, DIST ~225 m, SCORE 46 (2 gates x ~23 live), 5 gauges, docking ring x2 ~215 m ahead, staged high in frame (aim 55 m below the gate) so its lower arc clears the raised 3D panel + glareshield — projection-checked in qa/fix2-projection.mjs',
+    mission: 0, camera: 'cockpit', settleSteps: 45,
+    note: 'Cockpit, Halo Ring Run DAY, VEL 196, FUEL 76.0, DIST ~215 m, SCORE 46 (2 gates x ~23 live), 5 gauges, halo gate x2.5 staged between ship and Theros day-side so the ring reads large (~240 px) against the banded planet, aim 60 m below gate so the ring sits high and its lower arc clears the raised 3D panel — the cockpit view of a real playable mission (C toggles cockpit in any mission), not a fabrication',
     apply(game) {
       const { state, director } = game;
-      director.startSortie(4);
-      director.director.gateIndex = 2; // final gate: the docking ring
+      director.startSortie(0);
+      director.director.gateIndex = 2; // two gates already threaded
       director.dimPassedGates();
       state.gatesPassed = 2;
       director.director.score = 46;
       state.score = 46;
-      // FIX PASS 2: ring staged x2 (was x3) and aimed 55 m below the gate
-      // centre. A x3 ring at dead-centre put its lower arc behind the
-      // raised 3D panel / glareshield and an asteroid overlapped its
-      // upper-right; with the aim offset the ring reads large (~185 px)
-      // in the upper frame with its full circle clear (lower arc ~308,
-      // panel top ~326, shield band ~333-343, GATE label ~192) and no
-      // asteroid overlaps the disc (qa/fix2-projection.mjs, exact seeded
-      // belt). The crossing test still uses the real 18 m GATE_RADIUS.
-      stageGateLarge(director.director.gates[2], 2, 100);
+      // DAY cockpit (was Eclipse mission 4, night palette sun 0.9 /
+      // ambient 0.55): the Eclipse staging put the ship ~215 m from a
+      // gate that sits only 38 m in front of Port Solenne's own dock
+      // ring, so TWO rings overlapped in frame and the left arc of the
+      // dock ring crossed the "GATE 3/3 · 225 m" label, on top of the
+      // murky night palette. Halo day (sun 2.6 / ambient 0.85) lights
+      // the panel, nose and ring; the gate is staged on the
+      // ship->Theros sightline (same staging discipline as the cover,
+      // whose gate is also repositioned toward Theros) so the ring
+      // reads against Theros' lit bands instead of black void.
+      // Ship (0,200,-1200); Theros centre (-650,300,-2300).
+      const gate = director.director.gates[2];
+      gate.position.set(-109, 217, -1384);
+      gate.lookAt(new THREE.Vector3(0, 200, -1200));
+      stageGateLarge(gate, 2.5, 115);
       setState(state, {
-        position: new THREE.Vector3(140, 45, -650),
-        speed: 96, fuel: 64.2, hull: 100, roll: -0.06,
+        position: new THREE.Vector3(0, 200, -1200),
+        speed: 196, fuel: 76.0, hull: 100, roll: -0.06,
       });
-      // Aim 55 m BELOW the real final gate (220,60,-860) so the ring sits
-      // high in frame instead of dead-centre behind the panel — the ship
-      // flies a ~10 deg descending approach to the ring, V/S ~-17 m/s.
-      const aimPoint = director.director.gates[2].position.clone();
-      aimPoint.y -= 55;
+      // Aim 60 m BELOW the staged gate so the ring sits high in frame
+      // instead of dead-centre behind the panel.
+      const aimPoint = gate.position.clone();
+      aimPoint.y -= 60;
       aimAt(state, aimPoint);
       game.camera.setMode('cockpit');
       game.camera.snap(state);
-      game.applyPalette('eclipse');
+      game.applyPalette('day');
     },
   },
   asteroid: {
     mission: 0, camera: 'chase', settleSteps: 45,
-    note: 'Chase, banking 28 deg, VEL 388, FUEL 71.8, DIST ~335 m, SCORE 46 (2 gates x ~23 live), gate ahead between rocks (ring ×2)',
+    note: 'Chase, banking 28 deg, VEL 388, FUEL 71.8, DIST ~335 m, SCORE 46 (2 gates x ~23 live), gate ahead between rocks (ring ×3, rocks pushed to frame edges)',
     apply(game) {
       const { state, director, THREE: T } = game;
       director.startSortie(0);
@@ -120,9 +127,12 @@ export const SHOT_PRESETS = {
       const gate = director.director.gates[2];
       gate.position.set(30, 60, -1150);
       gate.lookAt(state.position);
-      stageGateLarge(gate, 2, 100);
+      // Ring x3 (was x2): the gate is the hero of this shot — ~300 px
+      // across, framed by rocks pushed to the frame edges for depth
+      // instead of hugging the ring.
+      stageGateLarge(gate, 3, 130);
       aimAt(state, gate.position);
-      for (const [x, y, z, s] of [[-38, 52, -1120, 24], [88, 40, -1185, 30]]) {
+      for (const [x, y, z, s] of [[-95, 25, -1130, 26], [150, 85, -1200, 34], [110, -15, -1010, 22]]) {
         const rock = new T.Mesh(
           new T.DodecahedronGeometry(1, 0),
           new T.MeshStandardMaterial({ color: 0x9d8f7c, roughness: 1, flatShading: true }),
@@ -146,11 +156,17 @@ export const SHOT_PRESETS = {
       director.director.gateIndex = 4;
       state.gatesPassed = 4;
       setState(state, {
-        position: new THREE.Vector3(200, 60, -760),
+        position: new THREE.Vector3(215, 68, -745),
         speed: 0, fuel: 71.6, hull: 100, roll: 0, pitch: 0,
       });
       state.docked = true;
       state.dockGrade = 'GREASED';
+      // Variant C (mild): ship 15 m right / 8 m up from the old
+      // (200,60,-760) — just enough to shift the big dark seeded rock
+      // out of the dead bottom-left corner without re-framing the
+      // station. Variant B (185,75,-780, ~57 m) was REJECTED: it put a
+      // huge seeded rock slab across the top-right corner and cropped
+      // the station awkwardly.
       aimAt(state, new THREE.Vector3(246, 60, -827)); // docking ring ahead
       // Score moment: hide the mission gate rings so only the station's own
       // docking ring reads — no double-ring confusion.
