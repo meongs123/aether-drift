@@ -153,19 +153,24 @@ export function createHud(THREE) {
     } // !compact — HDG tape
 
     // Attitude indicator, bottom centre-left; V/S + DIST readout beside it.
-    drawAttitude(ctx, W * 0.5 - 300, H - 118, 52, state.pitch, state.roll);
+    // FIX PASS 2 (QA F6): the compact bottom row sat tight to the edge —
+    // gauge unit text ~5.6 px tall with ~37 px clearance read as clipped
+    // in screenshots. Lifted 38 virtual px (~21 CSS px) on phones only;
+    // desktop values are unchanged so desktop frames re-capture identical.
+    const lift = compact ? 38 : 0;
+    drawAttitude(ctx, W * 0.5 - 300, H - 118 - lift, 52, state.pitch, state.roll);
     ctx.save();
     ctx.fillStyle = 'rgba(4,10,18,0.78)';
-    ctx.fillRect(W * 0.5 - 230, H - 158, 180, 84);
-    ctx.strokeStyle = 'rgba(120,200,255,0.45)'; ctx.strokeRect(W * 0.5 - 230.5, H - 158.5, 180, 84);
+    ctx.fillRect(W * 0.5 - 230, H - 158 - lift, 180, 84);
+    ctx.strokeStyle = 'rgba(120,200,255,0.45)'; ctx.strokeRect(W * 0.5 - 230.5, H - 158.5 - lift, 180, 84);
     ctx.textAlign = 'left'; ctx.font = `bold 13px ${FONT}`;
-    ctx.fillStyle = '#39e6ff'; ctx.fillText('V/S', W * 0.5 - 218, H - 132);
+    ctx.fillStyle = '#39e6ff'; ctx.fillText('V/S', W * 0.5 - 218, H - 132 - lift);
     ctx.fillStyle = '#fff'; ctx.font = `bold 22px ${FONT}`;
-    ctx.fillText(`${state.verticalSpeed >= 0 ? '+' : ''}${fmt(state.verticalSpeed, 1)} m/s`, W * 0.5 - 218, H - 106);
+    ctx.fillText(`${state.verticalSpeed >= 0 ? '+' : ''}${fmt(state.verticalSpeed, 1)} m/s`, W * 0.5 - 218, H - 106 - lift);
     ctx.fillStyle = '#ffd166'; ctx.font = `bold 13px ${FONT}`;
-    ctx.fillText('DIST TO OBJECTIVE', W * 0.5 - 218, H - 88);
+    ctx.fillText('DIST TO OBJECTIVE', W * 0.5 - 218, H - 88 - lift);
     ctx.fillStyle = '#fff'; ctx.font = `bold 22px ${FONT}`;
-    ctx.fillText(state.docked ? 'DOCKED' : gateDist == null ? '—' : `${fmt(gateDist, 0)} m`, W * 0.5 - 218, H - 66);
+    ctx.fillText(state.docked ? 'DOCKED' : gateDist == null ? '—' : `${fmt(gateDist, 0)} m`, W * 0.5 - 218, H - 66 - lift);
     ctx.restore();
 
     // Gauges — 4 chase, 5 cockpit (extra HDG dial in the cockpit).
@@ -181,8 +186,9 @@ export function createHud(THREE) {
     const gw = compact ? 62 : 84, gap = compact ? 6 : 10;
     const totalW = gauges.length * gw + (gauges.length - 1) * gap;
     // Gauges live right of the V/S box, clear of the minimap (bottom-right).
-    // Phone: lifted 14 virtual px so the dial labels clear the bottom edge.
-    const gaugeY = compact ? H - 132 : H - 118;
+    // Phone: lifted 38 virtual px (H-170, was H-132) so the dial labels +
+    // units clear the bottom edge with real margin (QA F6).
+    const gaugeY = compact ? H - 170 : H - 118;
     let gx = cameraMode === 'cockpit' ? W / 2 - 40 : W / 2 + 20;
     const rightClear = compact ? 8 : 222;
     if (gx + totalW > W - rightClear) gx = W - rightClear - totalW;

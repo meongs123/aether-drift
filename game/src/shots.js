@@ -68,7 +68,7 @@ export const SHOT_PRESETS = {
   },
   cockpit: {
     mission: 4, camera: 'cockpit', settleSteps: 45,
-    note: 'Cockpit, Eclipse Docking, VEL 96, FUEL 64.2, DIST ~225 m, SCORE 46 (2 gates x ~23 live), 5 gauges, docking ring x3 ~207 m ahead centred',
+    note: 'Cockpit, Eclipse Docking, VEL 96, FUEL 64.2, DIST ~225 m, SCORE 46 (2 gates x ~23 live), 5 gauges, docking ring x2 ~215 m ahead, staged high in frame (aim 55 m below the gate) so its lower arc clears the raised 3D panel + glareshield — projection-checked in qa/fix2-projection.mjs',
     apply(game) {
       const { state, director } = game;
       director.startSortie(4);
@@ -77,14 +77,25 @@ export const SHOT_PRESETS = {
       state.gatesPassed = 2;
       director.director.score = 46;
       state.score = 46;
-      // Same x3 staging as the cover: the 18 m ring at 207 m reads as a
-      // thin diamond unscaled; scaled it fills ~370 px, centred ahead.
-      stageGateLarge(director.director.gates[2], 3, 130);
+      // FIX PASS 2: ring staged x2 (was x3) and aimed 55 m below the gate
+      // centre. A x3 ring at dead-centre put its lower arc behind the
+      // raised 3D panel / glareshield and an asteroid overlapped its
+      // upper-right; with the aim offset the ring reads large (~185 px)
+      // in the upper frame with its full circle clear (lower arc ~308,
+      // panel top ~326, shield band ~333-343, GATE label ~192) and no
+      // asteroid overlaps the disc (qa/fix2-projection.mjs, exact seeded
+      // belt). The crossing test still uses the real 18 m GATE_RADIUS.
+      stageGateLarge(director.director.gates[2], 2, 100);
       setState(state, {
         position: new THREE.Vector3(140, 45, -650),
         speed: 96, fuel: 64.2, hull: 100, roll: -0.06,
       });
-      aimAt(state, director.director.gates[2].position); // the real final gate (220,60,-860) — NOT the station ring (246,60,-827), which sits ~42 m aside; aiming at the station put the mission ring ~100 px left of centre
+      // Aim 55 m BELOW the real final gate (220,60,-860) so the ring sits
+      // high in frame instead of dead-centre behind the panel — the ship
+      // flies a ~10 deg descending approach to the ring, V/S ~-17 m/s.
+      const aimPoint = director.director.gates[2].position.clone();
+      aimPoint.y -= 55;
+      aimAt(state, aimPoint);
       game.camera.setMode('cockpit');
       game.camera.snap(state);
       game.applyPalette('eclipse');

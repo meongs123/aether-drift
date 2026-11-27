@@ -116,17 +116,30 @@ export function buildShipModel(THREE) {
   // (hull top is ~0.73 at this station), so from the seat only clipped
   // label fragments peeked over the nose. It now sits at y 0.85, tilted up
   // toward the raised seat eye, clear of the hull line.
+  // FIX PASS 2: y 0.85 still hid the dials' lower halves behind the nose
+  // wedge (ray from the seat eye to the dial bottoms crossed the hull
+  // crest) and the panel top sat where the ring's lower arc projects.
+  // Panel raised to y 1.05, moved forward to z -2.35, tilt eased to -0.35:
+  // projection-checked (qa/fix2-projection.mjs) — all 5 dial centres,
+  // bottoms and labels clear of the nose (dial bottoms ~19 px above the
+  // nose line) and the panel top edge sits below the staged ring's lower
+  // arc. Emissive 1.1 so the dials read lit even in the eclipse palette.
   const panel = new THREE.Mesh(
     new THREE.BoxGeometry(2.6, 0.85, 0.22),
-    new THREE.MeshStandardMaterial({ map: makePanelTexture(THREE), roughness: 0.5, metalness: 0.2, emissive: 0xffffff, emissiveMap: makePanelTexture(THREE), emissiveIntensity: 0.55 }),
+    new THREE.MeshStandardMaterial({ map: makePanelTexture(THREE), roughness: 0.5, metalness: 0.2, emissive: 0xffffff, emissiveMap: makePanelTexture(THREE), emissiveIntensity: 1.1 }),
   );
-  panel.position.set(0, 0.85, -2.55);
-  panel.rotation.x = -0.55;
+  panel.position.set(0, 1.05, -2.35);
+  panel.rotation.x = -0.35;
   panel.name = 'instrumentPanel';
   cockpit.add(panel);
   // Glareshield above the panel + side consoles.
-  const shield = new THREE.Mesh(new THREE.BoxGeometry(3.2, 0.12, 0.45), darkMetal);
-  shield.position.set(0, 1.15, -2.45); shield.rotation.x = 0.3; cockpit.add(shield);
+  // FIX PASS 2: the shield sat at y 1.15, right where the GATE label
+  // projects — its dark bar bisected "GATE x/x · xxx m" in the staged
+  // cockpit shot. Raised to y 1.38 and thinned (0.07 x 0.30): the band
+  // now projects at y ~333-343, well below the label (~192) and below
+  // the staged ring's lower arc (~308).
+  const shield = new THREE.Mesh(new THREE.BoxGeometry(3.2, 0.07, 0.30), darkMetal);
+  shield.position.set(0, 1.38, -2.45); shield.rotation.x = 0.3; cockpit.add(shield);
   for (const s of [-1, 1]) {
     const console_ = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.3, 2.2), darkMetal);
     console_.position.set(s * 1.55, -0.35, -1.4);

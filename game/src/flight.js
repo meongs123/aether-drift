@@ -107,8 +107,14 @@ export function stepFlight(state, input, dt, world) {
   // FIX PASS 1: burn ×2.5 (was ~0.77%/s at 74% throttle, ~25% per sortie —
   // fuel could never bind). A Halo Ring Run at cruise now costs ~55–70%
   // of the tank, so fuel is a real decision and GOLD is not automatic.
+  // FIX PASS 2: eased 25 -> 21 (~16% lighter; full-throttle empty ~42 s,
+  // was ~35 s). The Comet/Distress failures were controller limit-cycles,
+  // not fuel — but the extra margin lets a circling learner recover
+  // instead of running dry mid-sortie. Sloppy-vs-clean separation is
+  // untouched: it lives in the accuracy term, and the fuel term moves
+  // scores <1 pt.
   const burn = (0.004 + 0.11 * Math.pow(state.throttle, 1.37)) * dt;
-  state.fuel = Math.max(0, state.fuel - burn * 25);
+  state.fuel = Math.max(0, state.fuel - burn * 21);
   if (state.fuel <= 0 && state.speed > 5) {
     state.throttle = Math.max(0, state.throttle - dt * 0.5);
   }
