@@ -39,18 +39,23 @@ function stageGateLarge(gate, factor, glowSize) {
 export const SHOT_PRESETS = {
   cover: {
     mission: 0, camera: 'chase', settleSteps: 45,
-    note: 'Chase, GATE 3/8, VEL 312, FUEL 78.4, DIST ~218 m, SCORE 46 (2 gates x ~23 live), hero gate 63 m ring ~218 m ahead, Theros day side upper frame, Keth in frame left',
+    note: 'Chase, GATE 3/8, VEL 312, FUEL 78.4, DIST ~218 m, SCORE 30 (2 gates threaded, live clean-run value — see note below), hero gate 63 m ring ~218 m ahead, Theros day side upper frame, Keth in frame left',
     apply(game) {
       const { state, director } = game;
       director.startSortie(0);
       director.director.gateIndex = 2; // two gates already threaded
       director.dimPassedGates();
       state.gatesPassed = 2;
-      // Staged live score: two gates threaded at ~23 each (the live
-      // per-gate value from the harness) — the shot must show a SCORE,
+      // Staged live score is 30, NOT 46. The old "2 gates x ~23" was a
+      // miscalculation: the ~23 measured live after gate 1 already
+      // contains the time bonus (~15, one-off, decays — not per gate),
+      // so the marginal second gate is only ~+9. gradeSortie at 2/8
+      // gates caps at 34 absolute (progress 0.25: 15 + 3.75 + 15), and
+      // the verifier's clean-run probe (fuel ~78, ~15 s/gate) lands at
+      // 30 — that is the value staged here. The shot must show a SCORE,
       // not 0, the same as real flight does after gate 1.
-      director.director.score = 46;
-      state.score = 46;
+      director.director.score = 30;
+      state.score = 30;
       setState(state, {
         position: new THREE.Vector3(0, 10, 0),
         speed: 312, fuel: 78.4, hull: 100, roll: 0.18, throttleChanges: 3,
@@ -61,7 +66,7 @@ export const SHOT_PRESETS = {
       gate.position.set(-105, 55, -185);
       gate.lookAt(state.position);
       // Ring x3.5 (was x3) — one size up so the hero ring dominates even
-      // more of the frame (~430 px) against Theros' bands.
+      // more of the frame (~400 px, verifier-measured) against Theros' bands.
       stageGateLarge(gate, 3.5, 150);
       aimAt(state, gate.position);
       game.camera.setMode('chase');
@@ -70,15 +75,15 @@ export const SHOT_PRESETS = {
   },
   cockpit: {
     mission: 0, camera: 'cockpit', settleSteps: 45,
-    note: 'Cockpit, Halo Ring Run DAY, VEL 196, FUEL 76.0, DIST ~215 m, SCORE 46 (2 gates x ~23 live), 5 gauges, halo gate x2.5 staged between ship and Theros day-side so the ring reads large (~240 px) against the banded planet, aim 60 m below gate so the ring sits high and its lower arc clears the raised 3D panel — the cockpit view of a real playable mission (C toggles cockpit in any mission), not a fabrication',
+    note: 'Cockpit, Halo Ring Run DAY, VEL 196, FUEL 76.0, DIST ~215 m, SCORE 30 (2 gates threaded, live clean-run value — gradeSortie ceiling at 2/8 gates is 34, time bonus ~15 is one-off not per gate), 5 gauges, halo gate x2.5 staged between ship and Theros day-side so the ring reads large (~253 px) against the banded planet, aim 60 m below gate so the ring sits high and its lower arc clears the raised 3D panel — the cockpit view of a real playable mission (C toggles cockpit in any mission), not a fabrication',
     apply(game) {
       const { state, director } = game;
       director.startSortie(0);
       director.director.gateIndex = 2; // two gates already threaded
       director.dimPassedGates();
       state.gatesPassed = 2;
-      director.director.score = 46;
-      state.score = 46;
+      director.director.score = 30;
+      state.score = 30;
       // DAY cockpit (was Eclipse mission 4, night palette sun 0.9 /
       // ambient 0.55): the Eclipse staging put the ship ~215 m from a
       // gate that sits only 38 m in front of Port Solenne's own dock
@@ -110,15 +115,15 @@ export const SHOT_PRESETS = {
   },
   asteroid: {
     mission: 0, camera: 'chase', settleSteps: 45,
-    note: 'Chase, banking 28 deg, VEL 388, FUEL 71.8, DIST ~335 m, SCORE 46 (2 gates x ~23 live), gate ahead between rocks (ring ×3, rocks pushed to frame edges)',
+    note: 'Chase, banking 28 deg, VEL 388, FUEL 71.8, DIST ~335 m, SCORE 30 (2 gates threaded, live clean-run value — gradeSortie ceiling at 2/8 gates is 34, time bonus ~15 is one-off not per gate), gate ahead between rocks (ring ×3, rocks pushed to frame edges)',
     apply(game) {
       const { state, director, THREE: T } = game;
       director.startSortie(0);
       director.director.gateIndex = 2;
       director.dimPassedGates();
       state.gatesPassed = 2;
-      director.director.score = 46;
-      state.score = 46;
+      director.director.score = 30;
+      state.score = 30;
       setState(state, {
         position: new THREE.Vector3(0, 20, -820),
         speed: 388, fuel: 71.8, hull: 100, roll: 0.5,
@@ -127,8 +132,8 @@ export const SHOT_PRESETS = {
       const gate = director.director.gates[2];
       gate.position.set(30, 60, -1150);
       gate.lookAt(state.position);
-      // Ring x3 (was x2): the gate is the hero of this shot — ~300 px
-      // across, framed by rocks pushed to the frame edges for depth
+      // Ring x3 (was x2): the gate is the hero of this shot — ~229 px
+      // across (verifier-measured), framed by rocks pushed to the frame edges for depth
       // instead of hugging the ring.
       stageGateLarge(gate, 3, 130);
       aimAt(state, gate.position);
