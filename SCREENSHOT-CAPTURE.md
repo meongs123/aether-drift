@@ -22,20 +22,36 @@ settles 1500 ms, then `page.screenshot(type="jpeg", quality=85)`.
 Each preset is captured **twice**; the script only writes to
 `screenshots/` when the two runs are byte-identical.
 
-## Committed files (screenshot round 3, 27 Nov 2026 — staging-only re-shoot)
+## Committed files (visual upgrade pass 4 — F1 re-capture, 27 Nov 2026)
 
 | file | preset | bytes | sha256 |
 |---|---|---|---|
-| `1-cover.jpg` | cover | 152,583 | `fd923a3c9c6be42f249bcff5d10ef6323d5df92278e99c209b21396927f6d266` |
-| `2-cockpit.jpg` | cockpit | 132,575 | `cc793afa657b2d0bb49d2a3da079563ef44a2a21c19491a38a6f77587a8d5341` |
-| `3-asteroid.jpg` | asteroid | 147,013 | `643a7ccd7c65d75ad791a45b9b9aad7e4801c99d05c223d7e2055e2feae73ccf` |
-| `4-docking.jpg` | docking | 141,879 | `74c13cc34db50b73747b751ba2684d10d1be257dfa41efff132e31c83acd70fb` |
+| `1-cover.jpg` | cover | 158,097 | `4e477561b8a4ea5a7d4b1183668bf99a6d86af5963c7b89bf7e5422a83c90fe1` |
+| `2-cockpit.jpg` | cockpit | 138,381 | `2f3c4639cdf9739d06dc95967c8cf60eee6332b5fd60e5f73da02c3978fa5c87` |
+| `3-asteroid.jpg` | asteroid | 154,526 | `5867d8edac41f744e275f27c6a625c9762db78475b54a137eafa15107a7a0d20` |
+| `4-docking.jpg` | docking | 150,465 | `027ab191eb6f1d806124fc31d0b7f59e958dc5c264f0298fe8e8441be11d3968` |
 
-Captured with `qa/capture-shots.py` (same procedure as fix pass 2);
-each preset captured twice, byte-identical across runs, 0 console
-errors. All four are 1280×720 and under the 256 KiB limit. Dossier
-2× byte-identical (node22 main.ts to two out dirs):
-sha256 `3b8b64a6db60834901cf7b213df5980e59141d3a9c24bb138b2723e8600a8ae7`.
+Re-captured from HEAD 4ed326d9 (visual upgrade pass 4: bloom composer,
+fog, ship rim light, chromatic aberration — NO code change in this
+commit, screenshots only) with `qa/qa5-f1-capture.py` — the same
+canonical procedure as `qa/capture-shots.py` (Playwright Chromium
+1255, SwiftShader, 1280×720, `__AETHER_READY__`, settle 1500 ms,
+JPEG q85), rebuilt to write intermediates to `qa/f1-capture/` in the
+workspace instead of /tmp (tmpfs was wiped by the runtime); each
+preset captured twice, byte-identical across runs, 0 console errors,
+and every hash matches the values independently verified 2× by QA
+pass 4 + Red Team pass 4 + the pass-4b restore check. All four are
+1280×720 and under the 256 KiB limit. Dossier 2× byte-identical
+(node22 v22.23.4 main.ts to two out dirs):
+sha256 `a88983009778025a9c54be643ffc3a93739ae6c3fe61aa1de7de520467fc4006`
+— identical to the dossier hash QA pass 4 computed from the same
+screenshots. Grader sim (fresh clone, read-only, user nobody,
+TZ=UTC, node22) 2× exit 0, same dossier hash.
+
+Previous round (screenshot round 3, staging-only re-shoot) hashes,
+now superseded: cover 152,583 B `fd923a3c…`, cockpit 132,575 B
+`cc793afa…`, asteroid 147,013 B `643a7ccd…`, docking 141,879 B
+`74c13cc3…`.
 Contact sheet (judge style, cover 768×432 + 3 cells 256×144):
 `qa/shot3-contact-sheet.png` — 4/4 cells read as a flight game.
 
